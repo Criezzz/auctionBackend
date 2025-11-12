@@ -47,7 +47,7 @@ def seed_database():
         ).first()
         
         if existing_admin:
-            print("✓ Admin user already exists")
+            print("Admin user already exists")
             return
         
         # Create admin user
@@ -88,7 +88,7 @@ def seed_database():
         print("  User  - username: user1, password: user123")
         
     except Exception as e:
-        print(f"✗ Error seeding database: {e}")
+        print(f"Error seeding database: {e}")
         db.rollback()
     finally:
         db.close()

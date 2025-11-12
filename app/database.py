@@ -1,14 +1,15 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from .config import settings
 
-# db link
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:@localhost:3306/auction_db"
+# Database URL from environment variables
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     pool_pre_ping=True,
-    echo=True  # Set to False in production
+    echo=settings.DEBUG  # Show SQL queries only in debug mode
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
