@@ -7,38 +7,45 @@ from typing import List
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "mysql+pymysql://root:@localhost:3306/auction_db"
+    DATABASE_URL: str
+    MYSQL_HOST: str
+    MYSQL_PORT: int
+    MYSQL_USER: str
+    MYSQL_PASSWORD: str
+    MYSQL_DATABASE: str
     
     # JWT Authentication
-    SECRET_KEY: str = "dev-secret-key-change-in-production"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    REFRESH_TOKEN_EXPIRE_DAYS: int
     
     # OTP and Password Reset Token Keys (separate from main SECRET_KEY)
-    SECRET_OTP_KEY: str = "dev-otp-secret-change-in-production"
-    SECRET_RESET_KEY: str = "dev-reset-secret-change-in-production"
+    SECRET_OTP_KEY: str
+    SECRET_RESET_KEY: str
     
     # Token Expiration Times
-    OTP_TOKEN_EXPIRE_MINUTES: int = 5
-    RESET_TOKEN_EXPIRE_MINUTES: int = 5
-    OTP_MAX_TRIALS: int = 5
+    OTP_TOKEN_EXPIRE_MINUTES: int
+    RESET_TOKEN_EXPIRE_MINUTES: int
+    OTP_MAX_TRIALS: int
     
     # Payment Token Keys (separate from other tokens)
-    SECRET_PAYMENT_TOKEN_KEY: str = "dev-payment-secret-change-in-production"
+    SECRET_PAYMENT_TOKEN_KEY: str
     
     # Payment Token Expiration Times
-    DEPOSIT_TOKEN_EXPIRE_MINUTES: int = 5
-    PAYMENT_TOKEN_EXPIRE_HOURS: int = 24
+    DEPOSIT_TOKEN_EXPIRE_MINUTES: int
+    PAYMENT_TOKEN_EXPIRE_HOURS: int
     
     # Application
-    DEBUG: bool = True
-    APP_NAME: str = "Auction Backend API"
-    APP_VERSION: str = "1.0.0"
-    APP_URL: str = "http://localhost:8000"
+    DEBUG: bool
+    APP_NAME: str
+    APP_VERSION: str
+    APP_URL: str
+    HOST: str
+    PORT: int
     
     # CORS (optional, for frontend integration)
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    ALLOWED_ORIGINS: str
     
     model_config = SettingsConfigDict(
         env_file=".env",

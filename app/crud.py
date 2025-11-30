@@ -42,7 +42,7 @@ def create_account(db: Session, account: schemas.AccountCreate) -> models.Accoun
         phone_num=account.phone_num,
         date_of_birth=account.date_of_birth,
         created_at=datetime.utcnow(),
-        activated=True,  # Auto-activate for demo; in production, send email verification
+        activated=False,  # Require email verification before activation
         is_admin=False,
         is_authenticated=False
     )
@@ -107,13 +107,24 @@ def get_products(db: Session, skip: int = 0, limit: int = 100) -> List[models.Pr
 
 def create_product(db: Session, product: schemas.ProductCreate, user_id: int = None) -> models.Product:
     """Create new product"""
+    # Handle additional_images list - convert to JSON string for database storage
+    additional_images_json = None
+    if product.additional_images:
+        import json
+        additional_images_json = json.dumps(product.additional_images)
+    
     db_product = models.Product(
         product_name=product.product_name,
         product_description=product.product_description,
         product_type=product.product_type,
+        image_url=product.image_url,
+        additional_images=additional_images_json,
+        shipping_status=None,  # Set default to None
         approval_status="pending",
+        rejection_reason=None,  # Set default to None
         suggested_by_user_id=user_id,
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
+        updated_at=None  # Set default to None for new products
     )
     db.add(db_product)
     db.commit()

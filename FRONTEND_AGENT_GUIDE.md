@@ -5,23 +5,25 @@ Sử dụng **React + TypeScript** để implement frontend với Interface-base
 
 ## 📋 Backend Context (89+ Endpoints)
 
-**Backend có 13 domain chính:**
-- Authentication (`/auth`) - JWT, OTP verification
+**Backend có 14 domain chính:**
+- Authentication (`/auth`) - JWT, OTP verification, password recovery
 - User Account (`/accounts`) - Profile management  
 - Products (`/products`) - Product CRUD
+- Images (`/images`) - Local image storage system
 - Auctions (`/auctions`) - Auction management
 - Bids (`/bids`) - Bidding system
 - Participation (`/participation`) - Auction registration
 - Payments (`/payments`) - Payment với QR system
-- Search (`/search`) - Search & filtering
-- Notifications (`/notifications`) - Notification management
 - Bank (`/bank`) - Mock bank integration
+- Search (`/search`) - Search & filteringlu
+- Notifications (`/notifications`) - Notification management
 - Status (`/status`) - Status management
-- Real-time (`/sse`, `/websocket`) - Live updates
+- Real-time SSE (`/sse`) - Server-Sent Events
+- Real-time WebSocket (`/websocket`) - Live updates
 
 ## 🏗️ Interface-based Architecture (theo yêu cầu thầy)
 
-### 1. Database Interfaces (12 interfaces chính)
+### 1. Database Interfaces (14 interfaces chính)
 
 ```typescript
 // src/database/interfaces/index.ts
@@ -74,11 +76,18 @@ export interface IRealTimeDatabase {
 export interface IDatabaseFactory {
   createAuthDatabase(): IAuthDatabase;
   createAccountDatabase(): IAccountDatabase;
+  createProductDatabase(): IProductDatabase;
+  createImageDatabase(): IImageDatabase;
   createAuctionDatabase(): IAuctionDatabase;
   createBidDatabase(): IBidDatabase;
+  createParticipationDatabase(): IParticipationDatabase;
   createPaymentDatabase(): IPaymentDatabase;
+  createBankDatabase(): IBankDatabase;
+  createSearchDatabase(): ISearchDatabase;
   createNotificationDatabase(): INotificationDatabase;
-  createRealTimeDatabase(): IRealTimeDatabase;
+  createStatusDatabase(): IStatusDatabase;
+  createSSEDatabase(): ISSEDatabase;
+  createWebSocketDatabase(): IWebSocketDatabase;
 }
 ```
 
@@ -519,13 +528,15 @@ export interface Payment {
 ## 🎯 Key Points
 
 1. **Interface-based architecture** theo yêu cầu thầy
-2. **12 Database interfaces** map với 13 backend domains  
+2. **14 Database interfaces** map với 14 backend domains  
 3. **Factory pattern** để khởi tạo database instances
 4. **React Context** cung cấp database factory cho toàn app
 5. **Custom hooks** cho auth, auctions, real-time features
 6. **TypeScript** đảm bảo type safety
 7. **JWT authentication** được handle tự động trong ApiClient
-8. **Real-time** via WebSocket cho auction updates
+8. **Real-time** via WebSocket và SSE cho auction updates
+9. **Image management** với local storage system
+10. **QR Payment system** với time-sensitive tokens
 
 ## 🚀 Setup Steps
 

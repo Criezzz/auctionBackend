@@ -179,6 +179,10 @@ class ProductBase(BaseModel):
     product_name: str
     product_description: Optional[str] = None
     product_type: Optional[str] = None
+    
+    # Image fields - essential for auction system
+    image_url: Optional[str] = None  # Main product image URL
+    additional_images: Optional[List[str]] = None  # List of additional image URLs
 
 
 class ProductCreate(ProductBase):
@@ -202,6 +206,8 @@ class ProductUpdate(BaseModel):
     product_name: Optional[str] = None
     product_description: Optional[str] = None
     product_type: Optional[str] = None
+    image_url: Optional[str] = None
+    additional_images: Optional[List[str]] = None
     shipping_status: Optional[str] = None
     approval_status: Optional[str] = None
     rejection_reason: Optional[str] = None

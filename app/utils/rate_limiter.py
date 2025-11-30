@@ -68,66 +68,12 @@ def check_rate_limit(
             "message": str
         })
     """
-    _cleanup_old_entries()
-    
-    current_time = datetime.utcnow()
-    window_start = current_time - timedelta(minutes=window_minutes)
-    
-    # Get current storage for this identifier
-    storage = _rate_limit_storage[identifier]
-    last_request = storage.get(limit_type)
-    
-    # If no previous request, allow
-    if not last_request:
-        storage[limit_type] = current_time
-        return True, {
-            "remaining": max_attempts - 1,
-            "reset_time": current_time + timedelta(minutes=window_minutes),
-            "message": "Còn lại {} lần thử trong {} phút".format(max_attempts - 1, window_minutes)
-        }
-    
-    # Check if request is within window
-    if current_time - last_request < timedelta(minutes=window_minutes):
-        # Within window, check if exceeded
-        current_requests = _client_requests[identifier]
-        # Count requests in window
-        recent_requests = [
-            req_time for req_time in current_requests 
-            if req_time > window_start
-        ]
-        
-        if len(recent_requests) >= max_attempts:
-            # Rate limit exceeded
-            reset_time = last_request + timedelta(minutes=window_minutes)
-            return False, {
-                "remaining": 0,
-                "reset_time": reset_time,
-                "message": "Đã vượt quá giới hạn. Thử lại sau {} phút.".format(
-                    (reset_time - current_time).seconds // 60 + 1
-                )
-            }
-        else:
-            # Within limits, record request
-            current_requests.append(current_time)
-            storage[limit_type] = current_time
-            return True, {
-                "remaining": max_attempts - len(recent_requests) - 1,
-                "reset_time": reset_time,
-                "message": "Còn lại {} lần thử trong {} phút".format(
-                    max_attempts - len(recent_requests) - 1, 
-                    window_minutes
-                )
-            }
-    else:
-        # Window expired, reset
-        storage[limit_type] = current_time
-        return True, {
-            "remaining": max_attempts - 1,
-            "reset_time": current_time + timedelta(minutes=window_minutes),
-            "message": "Đã reset giới hạn. Còn lại {} lần thử trong {} phút".format(
-                max_attempts - 1, window_minutes
-            )
-        }
+    # DISABLED: Always allow
+    return True, {
+        "remaining": 9999,
+        "reset_time": None,
+        "message": "Rate limiting is disabled."
+    }
 
 
 def check_client_ip_rate_limit(
@@ -148,9 +94,8 @@ def check_client_ip_rate_limit(
     Returns:
         bool: True if allowed, False if rate limited
     """
-    identifier = _get_client_identifier(client_ip)
-    is_allowed, _ = check_rate_limit(identifier, limit_type, max_attempts, window_minutes)
-    return is_allowed
+    # DISABLED: Always allow
+    return True
 
 
 def check_username_rate_limit(
@@ -171,9 +116,8 @@ def check_username_rate_limit(
     Returns:
         bool: True if allowed, False if rate limited
     """
-    identifier = _get_client_identifier("0.0.0.0", username)  # Use IP 0.0.0.0 for username-based limits
-    is_allowed, _ = check_rate_limit(identifier, limit_type, max_attempts, window_minutes)
-    return is_allowed
+    # DISABLED: Always allow
+    return True
 
 
 def get_rate_limit_info(

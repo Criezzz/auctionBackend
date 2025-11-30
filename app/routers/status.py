@@ -53,11 +53,22 @@ def update_product_status(
             detail="Product not found"
         )
     
+    # Parse additional_images JSON string back to list
+    additional_images_list = None
+    if updated_product.additional_images:
+        import json
+        try:
+            additional_images_list = json.loads(updated_product.additional_images)
+        except:
+            additional_images_list = None
+    
     return schemas.Product(
         product_id=updated_product.product_id,
         product_name=updated_product.product_name,
         product_description=updated_product.product_description,
         product_type=updated_product.product_type,
+        image_url=updated_product.image_url,
+        additional_images=additional_images_list,
         shipping_status=updated_product.shipping_status,
         created_at=updated_product.created_at,
         updated_at=updated_product.updated_at

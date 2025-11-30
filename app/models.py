@@ -42,6 +42,11 @@ class Product(Base):
     product_name: Mapped[str] = mapped_column(String(256), nullable=False)
     product_description: Mapped[Optional[str]] = mapped_column(String(1024))
     product_type: Mapped[Optional[str]] = mapped_column(String(100))
+    
+    # Image fields - essential for auction system
+    image_url: Mapped[Optional[str]] = mapped_column(String(512))  # Main product image
+    additional_images: Mapped[Optional[str]] = mapped_column(String(2048))  # JSON array of additional image URLs
+    
     shipping_status: Mapped[Optional[str]] = mapped_column(String(100))
     approval_status: Mapped[Optional[str]] = mapped_column(String(50), default="pending")  # pending, approved, rejected
     rejection_reason: Mapped[Optional[str]] = mapped_column(String(1024))

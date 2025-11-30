@@ -31,7 +31,7 @@ if SQLALCHEMY_DATABASE_URL.startswith("mysql"):
         with connection.cursor() as cursor:
             cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
         connection.close()
-        print(f"✓ Database '{db_name}' ready")
+        print(f"Database '{db_name}' ready")
     except Exception as e:
         print(f"Warning: Could not auto-create database: {e}")
         print("Please create the database manually or check your MySQL connection")

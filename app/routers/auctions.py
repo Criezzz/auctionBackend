@@ -112,6 +112,27 @@ def get_auction_details(auction_id: int, db: Session = Depends(get_db)):
     current_highest_bid = crud.get_current_highest_bid(db=db, auction_id=auction_id)
     current_price = current_highest_bid.bid_price if current_highest_bid else None
     
+    # Parse additional_images JSON string back to list
+    additional_images_list = None
+    if product and product.additional_images:
+        import json
+        try:
+            additional_images_list = json.loads(product.additional_images)
+        except:
+            additional_images_list = None
+    
+    product_with_images = schemas.Product(
+        product_id=product.product_id,
+        product_name=product.product_name,
+        product_description=product.product_description,
+        product_type=product.product_type,
+        image_url=product.image_url,
+        additional_images=additional_images_list,
+        shipping_status=product.shipping_status,
+        created_at=product.created_at,
+        updated_at=product.updated_at
+    ) if product else None
+    
     return schemas.AuctionDetail(
         auction_id=auction.auction_id,
         auction_name=auction.auction_name,
@@ -123,15 +144,7 @@ def get_auction_details(auction_id: int, db: Session = Depends(get_db)):
         bid_winner_id=auction.bid_winner_id,
         created_at=auction.created_at,
         updated_at=auction.updated_at,
-        product=schemas.Product(
-            product_id=product.product_id,
-            product_name=product.product_name,
-            product_description=product.product_description,
-            product_type=product.product_type,
-            shipping_status=product.shipping_status,
-            created_at=product.created_at,
-            updated_at=product.updated_at
-        ) if product else None,
+        product=product_with_images,
         bids=[schemas.Bid(
             bid_id=bid.bid_id,
             auction_id=bid.auction_id,

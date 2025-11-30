@@ -8,24 +8,24 @@ class MailSettings(BaseSettings):
     """Email settings from environment variables"""
     
     # SMTP Configuration
-    MAIL_HOST: str = "smtp.gmail.com"
-    MAIL_PORT: int = 587
-    MAIL_USERNAME: str = ""
-    MAIL_PASSWORD: str = ""
-    MAIL_FROM_ADDRESS: str = ""
-    MAIL_FROM_NAME: str = "Auction System"
+    MAIL_HOST: str
+    MAIL_PORT: int
+    MAIL_USERNAME: str
+    MAIL_PASSWORD: str
+    MAIL_FROM_ADDRESS: str
+    MAIL_FROM_NAME: str
     
     # Email settings
-    MAIL_USE_TLS: bool = True
-    MAIL_USE_SSL: bool = False
-    MAIL_TIMEOUT: int = 30
+    MAIL_USE_TLS: bool
+    MAIL_USE_SSL: bool
+    MAIL_TIMEOUT: int
     
     # App settings
-    APP_URL: str = "http://localhost:8000"
-    SUPPORT_EMAIL: str = "support@auction.com"
+    APP_URL: str
+    SUPPORT_EMAIL: str
     
     # Frontend URL for email links
-    FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URL: str
     
     model_config = SettingsConfigDict(
         env_file=".env",

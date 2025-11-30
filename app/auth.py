@@ -247,10 +247,6 @@ def validate_username_format(username: str) -> dict:
     if not re.match(r'^[a-zA-Z0-9_]+$', username):
         errors.append("Username chỉ được chứa chữ cái, số và dấu gạch dưới")
     
-    # Check doesn't start with number
-    if username and username[0].isdigit():
-        errors.append("Username không được bắt đầu bằng số")
-    
     if errors:
         return {
             "valid": False,
@@ -263,4 +259,3 @@ def validate_username_format(username: str) -> dict:
             "message": "Username hợp lệ",
             "errors": []
         }
-

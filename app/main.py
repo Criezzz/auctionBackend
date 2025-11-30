@@ -2,13 +2,15 @@ from fastapi import FastAPI, Depends, HTTPException, WebSocket, Request, Respons
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import logging
 from datetime import datetime
+import os
 
 from . import crud, models, schemas
 from .database import SessionLocal, engine
-from .routers import auth, accounts, products, auctions, search, participation, bids, payments, status, websocket, sse, notifications, bank
+from .routers import auth, accounts, products, auctions, search, participation, bids, payments, status, websocket, sse, notifications, bank, images
 from .config import settings
 
 
@@ -57,6 +59,15 @@ app.add_middleware(
     ],
 )
 
+# Static file serving for uploaded images
+if not os.path.exists("static"):
+    os.makedirs("static")
+if not os.path.exists("storage"):
+    os.makedirs("storage")
+    
+# Mount static directory for serving uploaded images
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Exception handlers
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -90,12 +101,19 @@ async def validation_exception_handler(request: Request, exc):
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc):
     """Handle unexpected errors"""
-    logger.error(f"Unexpected error: {str(exc)}", exc_info=True)
+    import traceback
+    error_detail = str(exc)
+    traceback_str = traceback.format_exc()
+    
+    logger.error(f"Unexpected error: {error_detail}")
+    logger.error(f"Traceback: {traceback_str}")
+    
     return JSONResponse(
         status_code=500,
         content={
             "success": False,
-            "detail": "Internal server error",
+            "detail": error_detail if "UnicodeEncodeError" in error_detail else "Internal server error",
+            "traceback": traceback_str if "UnicodeEncodeError" in error_detail else None,
             "timestamp": datetime.utcnow().isoformat()
         }
     )
@@ -115,6 +133,7 @@ app.include_router(websocket.router)
 app.include_router(sse.router)
 app.include_router(notifications.router)
 app.include_router(bank.router)
+app.include_router(images.router)
 
 
 @app.on_event("startup")
@@ -154,7 +173,7 @@ def root():
             "email_verification": "OTP-based email verification during registration",
             "password_recovery": "OTP-based password recovery system",
             "otp_management": "Secure OTP tokens stored in client localStorage",
-            "rate_limiting": "Simple in-memory rate limiting for security",
+            "rate_limiting": "Rate limiting disabled for testing (login only)",
             "enhanced_security": "Password strength validation and input sanitization"
         },
         "endpoints": {
@@ -181,6 +200,7 @@ def root():
             "Participation": "/participation/*",
             "Bidding": "/bids/*",
             "Payments": "/payments/*",
+            "Image Management": "/images/*",
             "Mock Bank API": "/bank/*",
             "Status Management": "/status/*",
             "WebSocket": "/ws/*",
@@ -203,8 +223,8 @@ def root():
         },
         "security_features": {
             "rate_limiting": {
-                "registration": "3 attempts/hour per IP",
-                "login": "5 attempts/15min per IP",
+                "registration": "No rate limiting (removed)",
+                "login": "Rate limiting disabled (removed)",
                 "otp_resend": "3 requests/15min per IP",
                 "password_recovery": "3 requests/15min per IP"
             },
@@ -258,7 +278,7 @@ def health_check():
             "database": "connected",
             "email_service": "configured",
             "otp_service": "active",
-            "rate_limiting": "enabled"
+            "rate_limiting": "disabled (login only)"
         }
     }
 
