@@ -1,36 +1,49 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Enum as SqlEnum
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List
+from enum import Enum
 
 from .database import Base
+
+
+# ------------------ ENUMS ------------------ #
+class UserRole(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
+
+class AccountStatus(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    SUSPENDED = "suspended"
 
 
 # ------------------ ACCOUNT ------------------ #
 class Account(Base):
     __tablename__ = "account"
 
-    account_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    accountID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
-    email: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
     password: Mapped[str] = mapped_column(String(256), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-    activated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    phone_num: Mapped[Optional[str]] = mapped_column(String(12))
-    first_name: Mapped[Optional[str]] = mapped_column(String(100))
-    last_name: Mapped[Optional[str]] = mapped_column(String(100))
-    date_of_birth: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    is_authenticated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    firstName: Mapped[str] = mapped_column(String(100), nullable=False)
+    lastName: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
+    dateOfBirth: Mapped[Optional[date]] = mapped_column(DateTime)
+    phoneNumber: Mapped[Optional[str]] = mapped_column(String(12))
+    address: Mapped[Optional[str]] = mapped_column(String(256))
+    role: Mapped[UserRole] = mapped_column(SqlEnum(UserRole), nullable=False, default=UserRole.USER)
+    status: Mapped[AccountStatus] = mapped_column(SqlEnum(AccountStatus), nullable=False, default=AccountStatus.ACTIVE)
+    lastLoginAt: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    isAuthenticated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     bids: Mapped[List["Bid"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     payments: Mapped[List["Payment"]] = relationship(back_populates="user", cascade="all, delete-orphan")
-    won_auctions: Mapped[List["Auction"]] = relationship(
-        back_populates="winner", foreign_keys=lambda: [Auction.bid_winner_id]
+    wonAuctions: Mapped[List["Auction"]] = relationship(
+        back_populates="winner", foreign_keys=lambda: [Auction.bidWinnerID]
     )
-    submitted_products: Mapped[List["Product"]] = relationship(
-        back_populates="suggested_by", foreign_keys=lambda: [Product.suggested_by_user_id]
+    submittedProducts: Mapped[List["Product"]] = relationship(
+        back_populates="suggestedBy", foreign_keys=lambda: [Product.suggestedByUserID]
     )
 
 
@@ -38,25 +51,25 @@ class Account(Base):
 class Product(Base):
     __tablename__ = "product"
 
-    product_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    product_name: Mapped[str] = mapped_column(String(256), nullable=False)
-    product_description: Mapped[Optional[str]] = mapped_column(String(1024))
-    product_type: Mapped[Optional[str]] = mapped_column(String(100))
+    productID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    productName: Mapped[str] = mapped_column(String(256), nullable=False)
+    productDescription: Mapped[Optional[str]] = mapped_column(String(1024))
+    productType: Mapped[Optional[str]] = mapped_column(String(100))
     
     # Image fields - essential for auction system
-    image_url: Mapped[Optional[str]] = mapped_column(String(512))  # Main product image
-    additional_images: Mapped[Optional[str]] = mapped_column(String(2048))  # JSON array of additional image URLs
+    imageUrl: Mapped[Optional[str]] = mapped_column(String(512))  # Main product image
+    additionalImages: Mapped[Optional[str]] = mapped_column(String(2048))  # JSON array of additional image URLs
     
-    shipping_status: Mapped[Optional[str]] = mapped_column(String(100))
-    approval_status: Mapped[Optional[str]] = mapped_column(String(50), default="pending")  # pending, approved, rejected
-    rejection_reason: Mapped[Optional[str]] = mapped_column(String(1024))
-    suggested_by_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("account.account_id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    shippingStatus: Mapped[Optional[str]] = mapped_column(String(100))
+    approvalStatus: Mapped[Optional[str]] = mapped_column(String(50), default="pending")  # pending, approved, rejected
+    rejectionReason: Mapped[Optional[str]] = mapped_column(String(1024))
+    suggestedByUserID: Mapped[Optional[int]] = mapped_column(ForeignKey("account.accountID"))
+    createdAt: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updatedAt: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     auctions: Mapped[List["Auction"]] = relationship(back_populates="product")
-    suggested_by: Mapped[Optional["Account"]] = relationship(
-        back_populates="submitted_products", foreign_keys=[suggested_by_user_id]
+    suggestedBy: Mapped[Optional["Account"]] = relationship(
+        back_populates="submittedProducts", foreign_keys=[suggestedByUserID]
     )
 
 
@@ -64,33 +77,33 @@ class Product(Base):
 class Auction(Base):
     __tablename__ = "auction"
 
-    auction_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    auction_name: Mapped[str] = mapped_column(String(256), nullable=False)
-    product_id: Mapped[int] = mapped_column(ForeignKey("product.product_id"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    price_step: Mapped[int] = mapped_column(Integer, nullable=False)
-    auction_status: Mapped[Optional[str]] = mapped_column(String(100))
-    bid_winner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("account.account_id"))
+    auctionID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    auctionName: Mapped[str] = mapped_column(String(256), nullable=False)
+    productID: Mapped[int] = mapped_column(ForeignKey("product.productID"), nullable=False)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updatedAt: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    startDate: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    endDate: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    priceStep: Mapped[int] = mapped_column(Integer, nullable=False)
+    auctionStatus: Mapped[Optional[str]] = mapped_column(String(100))
+    bidWinnerID: Mapped[Optional[int]] = mapped_column(ForeignKey("account.accountID"))
 
     product: Mapped["Product"] = relationship(back_populates="auctions")
     bids: Mapped[List["Bid"]] = relationship(back_populates="auction", cascade="all, delete-orphan")
     payments: Mapped[List["Payment"]] = relationship(back_populates="auction", cascade="all, delete-orphan")
-    winner: Mapped[Optional["Account"]] = relationship(back_populates="won_auctions")
+    winner: Mapped[Optional["Account"]] = relationship(back_populates="wonAuctions")
 
 
 # ------------------ BID ------------------ #
 class Bid(Base):
     __tablename__ = "bid"
 
-    bid_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    auction_id: Mapped[int] = mapped_column(ForeignKey("auction.auction_id"), nullable=False, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("account.account_id"), nullable=False, index=True)
-    bid_price: Mapped[int] = mapped_column(Integer, nullable=False)
-    bid_status: Mapped[Optional[str]] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    bidID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    auctionID: Mapped[int] = mapped_column(ForeignKey("auction.auctionID"), nullable=False, index=True)
+    userID: Mapped[int] = mapped_column(ForeignKey("account.accountID"), nullable=False, index=True)
+    bidPrice: Mapped[int] = mapped_column(Integer, nullable=False)
+    bidStatus: Mapped[Optional[str]] = mapped_column(String(100))
+    createdAt: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     auction: Mapped["Auction"] = relationship(back_populates="bids")
     user: Mapped["Account"] = relationship(back_populates="bids")
@@ -101,23 +114,23 @@ class Bid(Base):
 class Payment(Base):
     __tablename__ = "payment"
 
-    payment_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    auction_id: Mapped[int] = mapped_column(ForeignKey("auction.auction_id"), nullable=False, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("account.account_id"), nullable=False, index=True)
+    paymentID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    auctionID: Mapped[int] = mapped_column(ForeignKey("auction.auctionID"), nullable=False, index=True)
+    userID: Mapped[int] = mapped_column(ForeignKey("account.accountID"), nullable=False, index=True)
 
     # Replaced user_fullname:
-    first_name: Mapped[Optional[str]] = mapped_column(String(100))
-    last_name: Mapped[Optional[str]] = mapped_column(String(100))
+    firstName: Mapped[Optional[str]] = mapped_column(String(100))
+    lastName: Mapped[Optional[str]] = mapped_column(String(100))
 
-    user_address: Mapped[Optional[str]] = mapped_column(String(256))
-    user_receiving_option: Mapped[Optional[str]] = mapped_column(String(256))
-    user_payment_method: Mapped[Optional[str]] = mapped_column(String(100))
-    payment_status: Mapped[Optional[str]] = mapped_column(String(100))
+    userAddress: Mapped[Optional[str]] = mapped_column(String(256))
+    userReceivingOption: Mapped[Optional[str]] = mapped_column(String(256))
+    userPaymentMethod: Mapped[Optional[str]] = mapped_column(String(100))
+    paymentStatus: Mapped[Optional[str]] = mapped_column(String(100))
     
     # NEW FIELDS FOR QR PAYMENT SYSTEM:
-    payment_type: Mapped[str] = mapped_column(String(50), nullable=False, default="final_payment")  # "deposit" or "final_payment"
+    paymentType: Mapped[str] = mapped_column(String(50), nullable=False, default="final_payment")  # "deposit" or "final_payment"
     amount: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # Payment amount in VND
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     auction: Mapped["Auction"] = relationship(back_populates="payments")
     user: Mapped["Account"] = relationship(back_populates="payments")
@@ -129,15 +142,15 @@ class Payment(Base):
 class PaymentToken(Base):
     __tablename__ = "payment_token"
 
-    token_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tokenID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(512), unique=True, nullable=False, index=True)
-    payment_id: Mapped[int] = mapped_column(ForeignKey("payment.payment_id"), nullable=False, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("account.account_id"), nullable=False)
+    paymentID: Mapped[int] = mapped_column(ForeignKey("payment.paymentID"), nullable=False, index=True)
+    userID: Mapped[int] = mapped_column(ForeignKey("account.accountID"), nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False)  # Amount in VND
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    is_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    expiresAt: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    isUsed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    usedAt: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     payment: Mapped["Payment"] = relationship(back_populates="tokens")
     user: Mapped["Account"] = relationship()
@@ -147,19 +160,19 @@ class PaymentToken(Base):
 class Notification(Base):
     __tablename__ = "notification"
 
-    notification_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("account.account_id"), nullable=False, index=True)
-    auction_id: Mapped[int] = mapped_column(ForeignKey("auction.auction_id"), nullable=False, index=True)
+    notificationID: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    userID: Mapped[int] = mapped_column(ForeignKey("account.accountID"), nullable=False, index=True)
+    auctionID: Mapped[int] = mapped_column(ForeignKey("auction.auctionID"), nullable=False, index=True)
     
-    notification_type: Mapped[str] = mapped_column(String(50), nullable=False)  # bid_outbid, auction_won, auction_lost, auction_ending, etc.
+    notificationType: Mapped[str] = mapped_column(String(50), nullable=False)  # bid_outbid, auction_won, auction_lost, auction_ending, etc.
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str] = mapped_column(String(1024), nullable=False)
     
-    is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    isRead: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    isSent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    readAt: Mapped[Optional[datetime]] = mapped_column(DateTime)
     
     user: Mapped["Account"] = relationship()
     auction: Mapped["Auction"] = relationship()

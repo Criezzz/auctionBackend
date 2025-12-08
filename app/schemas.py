@@ -1,6 +1,18 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
+from enum import Enum
+
+
+# ========== ENUMS ========== #
+class UserRole(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
+
+class AccountStatus(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    SUSPENDED = "suspended"
 
 
 # ========== EXISTING ITEM SCHEMAS ========== #
@@ -38,18 +50,18 @@ class TokenResponse(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: int
+    accountID: int
     username: str
     email: str
-    role: str  
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone_num: Optional[str] = None
-    date_of_birth: Optional[datetime] = None
-    activated: bool
-    is_authenticated: bool
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    firstName: str
+    lastName: str
+    phoneNumber: Optional[str] = None
+    dateOfBirth: Optional[date] = None
+    address: Optional[str] = None
+    role: UserRole
+    status: AccountStatus
+    lastLoginAt: Optional[datetime] = None
+    isAuthenticated: bool
 
     class Config:
         from_attributes = True
@@ -160,29 +172,31 @@ class AccountCreate(BaseModel):
     username: str
     email: EmailStr
     password: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone_num: Optional[str] = None
-    date_of_birth: Optional[datetime] = None
+    firstName: str
+    lastName: str
+    phoneNumber: Optional[str] = None
+    dateOfBirth: Optional[date] = None
+    address: Optional[str] = None
 
 
 class AccountUpdate(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone_num: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    phoneNumber: Optional[str] = None
     email: Optional[EmailStr] = None
-    date_of_birth: Optional[datetime] = None
+    dateOfBirth: Optional[date] = None
+    address: Optional[str] = None
 
 
 # ========== PRODUCT SCHEMAS ========== #
 class ProductBase(BaseModel):
-    product_name: str
-    product_description: Optional[str] = None
-    product_type: Optional[str] = None
+    productName: str
+    productDescription: Optional[str] = None
+    productType: Optional[str] = None
     
     # Image fields - essential for auction system
-    image_url: Optional[str] = None  # Main product image URL
-    additional_images: Optional[List[str]] = None  # List of additional image URLs
+    imageUrl: Optional[str] = None  # Main product image URL
+    additionalImages: Optional[List[str]] = None  # List of additional image URLs
 
 
 class ProductCreate(ProductBase):
@@ -190,40 +204,40 @@ class ProductCreate(ProductBase):
 
 
 class Product(ProductBase):
-    product_id: int
-    shipping_status: Optional[str] = None
-    approval_status: Optional[str] = None
-    rejection_reason: Optional[str] = None
-    suggested_by_user_id: Optional[int] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    productID: int
+    shippingStatus: Optional[str] = None
+    approvalStatus: Optional[str] = None
+    rejectionReason: Optional[str] = None
+    suggestedByUserID: Optional[int] = None
+    createdAt: datetime
+    updatedAt: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
 
 class ProductUpdate(BaseModel):
-    product_name: Optional[str] = None
-    product_description: Optional[str] = None
-    product_type: Optional[str] = None
-    image_url: Optional[str] = None
-    additional_images: Optional[List[str]] = None
-    shipping_status: Optional[str] = None
-    approval_status: Optional[str] = None
-    rejection_reason: Optional[str] = None
+    productName: Optional[str] = None
+    productDescription: Optional[str] = None
+    productType: Optional[str] = None
+    imageUrl: Optional[str] = None
+    additionalImages: Optional[List[str]] = None
+    shippingStatus: Optional[str] = None
+    approvalStatus: Optional[str] = None
+    rejectionReason: Optional[str] = None
 
 
 class ProductRejectRequest(BaseModel):
-    rejection_reason: str
+    rejectionReason: str
 
 
 # ========== AUCTION SCHEMAS ========== #
 class AuctionBase(BaseModel):
-    auction_name: str
-    product_id: int
-    start_date: datetime
-    end_date: datetime
-    price_step: int
+    auctionName: str
+    productID: int
+    startDate: datetime
+    endDate: datetime
+    priceStep: int
 
 
 class AuctionCreate(AuctionBase):
@@ -231,46 +245,46 @@ class AuctionCreate(AuctionBase):
 
 
 class Auction(AuctionBase):
-    auction_id: int
-    auction_status: Optional[str] = None
-    bid_winner_id: Optional[int] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    auctionID: int
+    auctionStatus: Optional[str] = None
+    bidWinnerID: Optional[int] = None
+    createdAt: datetime
+    updatedAt: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
 
 class AuctionUpdate(BaseModel):
-    auction_name: Optional[str] = None
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    price_step: Optional[int] = None
-    auction_status: Optional[str] = None
-    bid_winner_id: Optional[int] = None
+    auctionName: Optional[str] = None
+    startDate: Optional[datetime] = None
+    endDate: Optional[datetime] = None
+    priceStep: Optional[int] = None
+    auctionStatus: Optional[str] = None
+    bidWinnerID: Optional[int] = None
 
 
 class AuctionDetail(Auction):
     product: Product = None
     bids: List["Bid"] = []
-    current_price: Optional[int] = None
+    currentPrice: Optional[int] = None
 
     class Config:
         from_attributes = True
 
 
 class AuctionSearch(BaseModel):
-    auction_name: Optional[str] = None
-    auction_status: Optional[str] = None
-    product_type: Optional[str] = None
-    min_price_step: Optional[int] = None
-    max_price_step: Optional[int] = None
+    auctionName: Optional[str] = None
+    auctionStatus: Optional[str] = None
+    productType: Optional[str] = None
+    minPriceStep: Optional[int] = None
+    maxPriceStep: Optional[int] = None
 
 
 # ========== BID SCHEMAS ========== #
 class BidBase(BaseModel):
-    auction_id: int
-    bid_price: int
+    auctionID: int
+    bidPrice: int
 
 
 class BidCreate(BidBase):
@@ -278,10 +292,10 @@ class BidCreate(BidBase):
 
 
 class Bid(BidBase):
-    bid_id: int
-    user_id: int
-    bid_status: Optional[str] = None
-    created_at: datetime
+    bidID: int
+    userID: int
+    bidStatus: Optional[str] = None
+    createdAt: datetime
 
     class Config:
         from_attributes = True
@@ -289,12 +303,12 @@ class Bid(BidBase):
 
 # ========== PAYMENT SCHEMAS ========== #
 class PaymentBase(BaseModel):
-    auction_id: int
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    user_address: Optional[str] = None
-    user_receiving_option: Optional[str] = None
-    user_payment_method: Optional[str] = None
+    auctionID: int
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    userAddress: Optional[str] = None
+    userReceivingOption: Optional[str] = None
+    userPaymentMethod: Optional[str] = None
 
 
 class PaymentCreate(PaymentBase):
@@ -302,33 +316,33 @@ class PaymentCreate(PaymentBase):
 
 
 class Payment(PaymentBase):
-    payment_id: int
-    user_id: int
-    payment_status: Optional[str] = None
+    paymentID: int
+    userID: int
+    paymentStatus: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
 class PaymentStatusUpdate(BaseModel):
-    payment_status: str
+    paymentStatus: str
 
 
 class ProductStatusUpdate(BaseModel):
-    shipping_status: str
+    shippingStatus: str
 
 
 class AuctionResultUpdate(BaseModel):
-    bid_winner_id: int
+    bidWinnerID: int
 
 
 # ========== PARTICIPATION SCHEMAS ========== #
 class AuctionParticipation(BaseModel):
-    auction_id: int
-    user_id: int
-    deposit_amount: Optional[int] = None
-    participation_status: Optional[str] = None
-    created_at: datetime
+    auctionID: int
+    userID: int
+    depositAmount: Optional[int] = None
+    participationStatus: Optional[str] = None
+    createdAt: datetime
 
     class Config:
         from_attributes = True
@@ -352,9 +366,9 @@ class ErrorResponse(BaseModel):
 
 # ========== NOTIFICATION SCHEMAS ========== #
 class NotificationBase(BaseModel):
-    user_id: int
-    auction_id: int
-    notification_type: str
+    userID: int
+    auctionID: int
+    notificationType: str
     title: str
     message: str
 
@@ -364,18 +378,18 @@ class NotificationCreate(NotificationBase):
 
 
 class Notification(NotificationBase):
-    notification_id: int
-    is_read: bool
-    is_sent: bool
-    created_at: datetime
-    read_at: Optional[datetime] = None
+    notificationID: int
+    isRead: bool
+    isSent: bool
+    createdAt: datetime
+    readAt: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
 
 class NotificationUpdate(BaseModel):
-    is_read: Optional[bool] = None
+    isRead: Optional[bool] = None
 
 
 # ========== WEBSOCKET SCHEMAS ========== #
@@ -386,19 +400,19 @@ class WebSocketMessage(BaseModel):
 
 
 class BidUpdateMessage(BaseModel):
-    auction_id: int
-    highest_bid_id: int
-    highest_bid_price: int
-    new_bidder_id: int
-    bidder_name: str
-    bid_count: int
+    auctionID: int
+    highestBidID: int
+    highestBidPrice: int
+    newBidderID: int
+    bidderName: str
+    bidCount: int
 
 
 class AuctionStatusMessage(BaseModel):
-    auction_id: int
+    auctionID: int
     status: str
-    winner_id: Optional[int] = None
-    final_price: Optional[int] = None
+    winnerID: Optional[int] = None
+    finalPrice: Optional[int] = None
 
 
 # ========== SSE SCHEMAS ========== #
@@ -413,25 +427,25 @@ class SSEEvent(BaseModel):
 class PaymentTokenResponse(BaseModel):
     """Response when generating payment token"""
     token: str
-    qr_url: str
-    expires_at: datetime
-    expires_in_minutes: int
+    qrUrl: str
+    expiresAt: datetime
+    expiresInMinutes: int
     amount: int
-    payment_type: str  # "deposit" or "final_payment"
+    paymentType: str  # "deposit" or "final_payment"
 
 
 class PaymentTokenStatusResponse(BaseModel):
     """Response for token status check"""
     valid: bool
-    payment_id: Optional[int] = None
-    user_id: Optional[int] = None
+    paymentID: Optional[int] = None
+    userID: Optional[int] = None
     amount: Optional[int] = None
-    payment_type: Optional[str] = None
-    expires_at: Optional[datetime] = None
-    remaining_minutes: Optional[int] = None
-    remaining_seconds: Optional[int] = None
-    used_at: Optional[datetime] = None
-    expired_at: Optional[datetime] = None
+    paymentType: Optional[str] = None
+    expiresAt: Optional[datetime] = None
+    remainingMinutes: Optional[int] = None
+    remainingSeconds: Optional[int] = None
+    usedAt: Optional[datetime] = None
+    expiredAt: Optional[datetime] = None
     error: Optional[str] = None
 
 
@@ -439,18 +453,17 @@ class QRCallbackResponse(BaseModel):
     """Response after QR code scan callback"""
     success: bool
     message: str
-    payment_id: Optional[int] = None
+    paymentID: Optional[int] = None
     amount: Optional[int] = None
-    payment_status: Optional[str] = None
+    paymentStatus: Optional[str] = None
 
 
 class DepositPaymentResponse(BaseModel):
     """Response when creating deposit payment"""
     success: bool
     message: str
-    payment_id: int
+    paymentID: int
     amount: int
-    payment_type: str
-    payment_status: str
-    qr_token: PaymentTokenResponse
-
+    paymentType: str
+    paymentStatus: str
+    qrToken: PaymentTokenResponse

@@ -39,30 +39,30 @@ def register_product(
     Returns: Created product information
     """
     # Create product
-    db_product = crud.create_product(db=db, product=product, user_id=current_user.account_id)
+    db_product = crud.create_product(db=db, product=product, user_id=current_user.accountID)
     
     # Parse additional_images JSON string back to list
     additional_images_list = None
-    if db_product.additional_images:
+    if db_product.additionalImages:
         import json
         try:
-            additional_images_list = json.loads(db_product.additional_images)
+            additional_images_list = json.loads(db_product.additionalImages)
         except:
             additional_images_list = None
     
     return schemas.Product(
-        product_id=db_product.product_id,
-        product_name=db_product.product_name,
-        product_description=db_product.product_description,
-        product_type=db_product.product_type,
-        image_url=db_product.image_url,
-        additional_images=additional_images_list,
-        shipping_status=db_product.shipping_status,
-        approval_status=db_product.approval_status,
-        rejection_reason=db_product.rejection_reason,
-        suggested_by_user_id=db_product.suggested_by_user_id,
-        created_at=db_product.created_at,
-        updated_at=db_product.updated_at
+        productID=db_product.productID,
+        productName=db_product.productName,
+        productDescription=db_product.productDescription,
+        productType=db_product.productType,
+        imageUrl=db_product.imageUrl,
+        additionalImages=additional_images_list,
+        shippingStatus=db_product.shippingStatus,
+        approvalStatus=db_product.approvalStatus,
+        rejectionReason=db_product.rejectionReason,
+        suggestedByUserID=db_product.suggestedByUserID,
+        createdAt=db_product.createdAt,
+        updatedAt=db_product.updatedAt
     )
 
 
@@ -97,7 +97,7 @@ async def register_product_with_images(
         product_type=product_type
     )
     
-    db_product = crud.create_product(db=db, product=product_data, user_id=current_user.account_id)
+    db_product = crud.create_product(db=db, product=product_data, user_id=current_user.accountID)
     
     # Process main image
     main_image_path = None
@@ -110,7 +110,7 @@ async def register_product_with_images(
                 raise HTTPException(status_code=400, detail=f"Main image error: {error_message}")
             
             # Save main image with product ID
-            main_image_path = save_image(file_content, main_image.filename, db_product.product_id)
+            main_image_path = save_image(file_content, main_image.filename, db_product.productID)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to save main image: {str(e)}")
     
@@ -126,7 +126,7 @@ async def register_product_with_images(
                     continue  # Skip invalid images
                 
                 # Save additional image
-                image_path = save_image(file_content, image.filename, db_product.product_id)
+                image_path = save_image(file_content, image.filename, db_product.productID)
                 additional_images_paths.append(image_path)
                 
             except Exception as e:
@@ -138,11 +138,11 @@ async def register_product_with_images(
     try:
         # Update main image URL if provided
         if main_image_path:
-            db_product.image_url = main_image_path
+            db_product.imageUrl = main_image_path
         
         # Update additional images if any
         if additional_images_paths:
-            db_product.additional_images = json.dumps(additional_images_paths)
+            db_product.additionalImages = json.dumps(additional_images_paths)
         
         db.commit()
         db.refresh(db_product)
@@ -153,25 +153,25 @@ async def register_product_with_images(
     
     # Return product with image URLs
     additional_images_list = None
-    if db_product.additional_images:
+    if db_product.additionalImages:
         try:
-            additional_images_list = json.loads(db_product.additional_images)
+            additional_images_list = json.loads(db_product.additionalImages)
         except:
             additional_images_list = None
     
     return schemas.Product(
-        product_id=db_product.product_id,
-        product_name=db_product.product_name,
-        product_description=db_product.product_description,
-        product_type=db_product.product_type,
-        image_url=db_product.image_url,
-        additional_images=additional_images_list,
-        shipping_status=db_product.shipping_status,
-        approval_status=db_product.approval_status,
-        rejection_reason=db_product.rejection_reason,
-        suggested_by_user_id=db_product.suggested_by_user_id,
-        created_at=db_product.created_at,
-        updated_at=db_product.updated_at
+        productID=db_product.productID,
+        productName=db_product.productName,
+        productDescription=db_product.productDescription,
+        productType=db_product.productType,
+        imageUrl=db_product.imageUrl,
+        additionalImages=additional_images_list,
+        shippingStatus=db_product.shippingStatus,
+        approvalStatus=db_product.approvalStatus,
+        rejectionReason=db_product.rejectionReason,
+        suggestedByUserID=db_product.suggestedByUserID,
+        createdAt=db_product.createdAt,
+        updatedAt=db_product.updatedAt
     )
 
 
@@ -184,7 +184,33 @@ def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
     Returns: List of products
     """
     products = crud.get_products(db=db, skip=skip, limit=limit)
-    return products
+    
+    # Parse additionalImages JSON string back to list for each product
+    parsed_products = []
+    for product in products:
+        additional_images_list = None
+        if product.additionalImages:
+            try:
+                additional_images_list = json.loads(product.additionalImages)
+            except:
+                additional_images_list = None
+        
+        parsed_products.append(schemas.Product(
+            productID=product.productID,
+            productName=product.productName,
+            productDescription=product.productDescription,
+            productType=product.productType,
+            imageUrl=product.imageUrl,
+            additionalImages=additional_images_list,
+            shippingStatus=product.shippingStatus,
+            approvalStatus=product.approvalStatus,
+            rejectionReason=product.rejectionReason,
+            suggestedByUserID=product.suggestedByUserID,
+            createdAt=product.createdAt,
+            updatedAt=product.updatedAt
+        ))
+    
+    return parsed_products
 
 
 @router.get("/{product_id}", response_model=schemas.Product)
@@ -202,25 +228,25 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
             detail="Product not found"
         )
     
-    # Parse additional_images JSON string back to list
+    # Parse additionalImages JSON string back to list
     additional_images_list = None
-    if product.additional_images:
+    if product.additionalImages:
         import json
         try:
-            additional_images_list = json.loads(product.additional_images)
+            additional_images_list = json.loads(product.additionalImages)
         except:
             additional_images_list = None
     
     return schemas.Product(
-        product_id=product.product_id,
-        product_name=product.product_name,
-        product_description=product.product_description,
-        product_type=product.product_type,
-        image_url=product.image_url,
-        additional_images=additional_images_list,
-        shipping_status=product.shipping_status,
-        created_at=product.created_at,
-        updated_at=product.updated_at
+        productID=product.productID,
+        productName=product.productName,
+        productDescription=product.productDescription,
+        productType=product.productType,
+        imageUrl=product.imageUrl,
+        additionalImages=additional_images_list,
+        shippingStatus=product.shippingStatus,
+        createdAt=product.createdAt,
+        updatedAt=product.updatedAt
     )
 
 
@@ -255,25 +281,25 @@ def update_product(
             detail="Product not found"
         )
     
-    # Parse additional_images JSON string back to list
+    # Parse additionalImages JSON string back to list
     additional_images_list = None
-    if updated_product.additional_images:
+    if updated_product.additionalImages:
         import json
         try:
-            additional_images_list = json.loads(updated_product.additional_images)
+            additional_images_list = json.loads(updated_product.additionalImages)
         except:
             additional_images_list = None
     
     return schemas.Product(
-        product_id=updated_product.product_id,
-        product_name=updated_product.product_name,
-        product_description=updated_product.product_description,
-        product_type=updated_product.product_type,
-        image_url=updated_product.image_url,
-        additional_images=additional_images_list,
-        shipping_status=updated_product.shipping_status,
-        created_at=updated_product.created_at,
-        updated_at=updated_product.updated_at
+        productID=updated_product.productID,
+        productName=updated_product.productName,
+        productDescription=updated_product.productDescription,
+        productType=updated_product.productType,
+        imageUrl=updated_product.imageUrl,
+        additionalImages=additional_images_list,
+        shippingStatus=updated_product.shippingStatus,
+        createdAt=updated_product.createdAt,
+        updatedAt=updated_product.updatedAt
     )
 
 
@@ -329,7 +355,7 @@ def get_pending_products(
     
     # Get products with "pending" approval status
     products = crud.get_products(db=db, skip=0, limit=100)
-    return [p for p in products if p.approval_status == "pending"]
+    return [p for p in products if p.approvalStatus == "pending"]
 
 
 @router.post("/{product_id}/approve", response_model=schemas.MessageResponse)

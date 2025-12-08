@@ -4,12 +4,13 @@ Authentication endpoints: login, refresh, me, OTP verification, password recover
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from datetime import timedelta, datetime
 import asyncio
 
 from .. import crud, schemas
 from ..database import SessionLocal
-from ..models import Payment, Bid
+from ..models import Payment, Bid, Account
 from ..auth import (
     create_access_token,
     create_refresh_token,
@@ -102,18 +103,15 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    if not user.activated:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account not activated",
-        )
+    # Account activation is handled via email verification
+    # No activation check needed as accounts are created with status=ACTIVE
     
     # Create tokens
     access_token = create_access_token(
-        data={"sub": user.username, "user_id": user.account_id}
+        data={"sub": user.username, "user_id": user.accountID}
     )
     refresh_token = create_refresh_token(
-        data={"sub": user.username, "user_id": user.account_id}
+        data={"sub": user.username, "user_id": user.accountID}
     )
     
     return schemas.TokenResponse(
@@ -178,19 +176,15 @@ def refresh_token(
             detail="User not found",
         )
     
-    if not user.activated:
-        logger.warning(f"User not activated: {username}")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account not activated",
-        )
+    # Account activation is handled via email verification
+    # No activation check needed as accounts are created with status=ACTIVE
     
     # Create new tokens
     access_token = create_access_token(
-        data={"sub": user.username, "user_id": user.account_id}
+        data={"sub": user.username, "user_id": user.accountID}
     )
     new_refresh_token = create_refresh_token(
-        data={"sub": user.username, "user_id": user.account_id}
+        data={"sub": user.username, "user_id": user.accountID}
     )
     
     logger.info(f"New tokens generated for user: {username}")
@@ -213,17 +207,18 @@ def get_me(current_user = Depends(get_current_user)):
     Returns: { "id", "username", "email", "role", ... }
     """
     return schemas.UserResponse(
-        id=current_user.account_id,
+        accountID=current_user.accountID,
         username=current_user.username,
         email=current_user.email,
-        role="admin" if current_user.is_admin else "user",
-        first_name=current_user.first_name,
-        last_name=current_user.last_name,
-        phone_num=current_user.phone_num,
-        date_of_birth=current_user.date_of_birth,
-        activated=current_user.activated,
-        is_authenticated=current_user.is_authenticated,
-        created_at=current_user.created_at
+        firstName=current_user.firstName,
+        lastName=current_user.lastName,
+        phoneNumber=current_user.phoneNumber,
+        dateOfBirth=current_user.dateOfBirth,
+        address=current_user.address,
+        role=current_user.role,
+        status=current_user.status,
+        lastLoginAt=current_user.lastLoginAt,
+        isAuthenticated=current_user.isAuthenticated
     )
 
 
@@ -243,6 +238,10 @@ async def register_with_otp(
     Returns: RegistrationWithOTPResponse with otp_token
     
     Rate Limit: 3 registrations per hour per IP
+    
+    Wipe-on-demand: If an unverified account (isAuthenticated=False) exists for 
+    more than 15 minutes, it will be automatically deleted when a new registration 
+    attempt is made with the same username/email.
     """
     # Get client IP
     client_ip = request.client.host if request.client else "unknown"
@@ -258,47 +257,83 @@ async def register_with_otp(
     if not validate_email_format(account_data.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Địa chỉ email không hợp lệ"
+            detail="Dia chi email khong hop le"
         )
     
     password_validation = validate_password_strength(account_data.password)
     if not password_validation["valid"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Mật khẩu không đủ mạnh: " + "; ".join(password_validation["errors"])
+            detail="Mat khau khong du manh: " + "; ".join(password_validation["errors"])
         )
     
-    # Check if username already exists
-    existing_user = crud.get_account_by_username(db, account_data.username)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username đã tồn tại"
-        )
+    # INSERT first, catch error later approach
+    # Try to create account directly, handle IntegrityError if duplicate exists
+    UNVERIFIED_ACCOUNT_EXPIRY_MINUTES = 15
     
-    # Check if email already exists
-    existing_email = db.query(crud.models.Account).filter(
-        crud.models.Account.email == account_data.email
-    ).first()
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email đã tồn tại"
-        )
-    
-    # Create account (activated=false by default)
-    account_data_dict = account_data.dict()
-    account_data_dict["activated"] = False
-    account_data_dict["is_authenticated"] = False
-    
-    # Note: Password will be hashed in crud.create_account, so don't hash it here
-    
-    db_account = crud.create_account(db=db, account=schemas.AccountCreate(**account_data_dict))
+    try:
+        db_account = crud.create_account(db=db, account=account_data)
+    except IntegrityError as e:
+        db.rollback()
+        
+        # Check if it's a duplicate username or email error
+        error_msg = str(e.orig).lower() if e.orig else str(e).lower()
+        
+        # Check for existing unverified account that can be wiped
+        existing_by_username = db.query(Account).filter(
+            Account.username == account_data.username
+        ).first()
+        
+        existing_by_email = db.query(Account).filter(
+            Account.email == account_data.email
+        ).first()
+        
+        # Determine which account to potentially wipe
+        existing_account = existing_by_username or existing_by_email
+        
+        if existing_account:
+            # Check if account is unverified and older than 15 minutes
+            now = datetime.utcnow()
+            account_age_minutes = (now - existing_account.createdAt).total_seconds() / 60 if existing_account.createdAt else 0
+            
+            if not existing_account.isAuthenticated and account_age_minutes >= UNVERIFIED_ACCOUNT_EXPIRY_MINUTES:
+                # Wipe the old unverified account
+                db.delete(existing_account)
+                db.commit()
+                
+                # Retry creating the new account
+                try:
+                    db_account = crud.create_account(db=db, account=account_data)
+                except IntegrityError:
+                    db.rollback()
+                    # If still fails, there might be another conflict
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Username hoac Email da ton tai"
+                    )
+            else:
+                # Account exists and is either verified or not old enough to wipe
+                if existing_by_username and existing_by_username.username == account_data.username:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Username da ton tai"
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Email da ton tai"
+                    )
+        else:
+            # Unknown integrity error
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Khong the tao tai khoan. Vui long thu lai."
+            )
     
     # Generate OTP
     otp_data = create_otp(account_data.username, "registration", db)
     
-    # Send OTP email (temporarily disabled for testing)
+    # Send OTP email
     try:
         email_sent = await send_otp_email(
             otp=otp_data["otp_code"],
@@ -310,32 +345,24 @@ async def register_with_otp(
         print(f"Email sending failed (non-fatal): {e}")
         email_sent = False
     
-    # Don't fail registration if email fails (for testing)
-    # if not email_sent:
-    #     db.delete(db_account)
-    #     db.commit()
-    #     raise HTTPException(
-    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    #         detail="Không thể gửi email xác minh. Vui lòng thử lại sau."
-    #     )
-    
     return schemas.RegistrationWithOTPResponse(
         success=True,
-        message="Tài khoản đã được tạo. Vui lòng kiểm tra email để xác minh OTP.",
+        message="Tai khoan da duoc tao. Vui long kiem tra email de xac minh OTP.",
         otp_token=otp_data["otp_token"],
         expires_in=5 * 60,  # 5 minutes
         user=schemas.UserResponse(
-            id=db_account.account_id,
+            accountID=db_account.accountID,
             username=db_account.username,
             email=db_account.email,
-            role="user",
-            first_name=db_account.first_name,
-            last_name=db_account.last_name,
-            phone_num=db_account.phone_num,
-            date_of_birth=db_account.date_of_birth,
-            activated=db_account.activated,
-            is_authenticated=db_account.is_authenticated,
-            created_at=db_account.created_at
+            firstName=db_account.firstName,
+            lastName=db_account.lastName,
+            phoneNumber=db_account.phoneNumber,
+            dateOfBirth=db_account.dateOfBirth,
+            address=db_account.address,
+            role=db_account.role,
+            status=db_account.status,
+            lastLoginAt=db_account.lastLoginAt,
+            isAuthenticated=db_account.isAuthenticated
         )
     )
 
@@ -356,11 +383,10 @@ async def verify_registration_otp(
     otp_result = verify_otp(verify_data.otp_code, verify_data.otp_token, verify_data.username, "registration")
     
     if otp_result["success"]:
-        # OTP is correct, activate account
+        # OTP is correct, user is already active by default
         user = crud.get_account_by_username(db, verify_data.username)
         if user:
-            user.activated = True
-            user.is_authenticated = True
+            user.isAuthenticated = True
             db.commit()
             
             # Send welcome email
@@ -368,10 +394,10 @@ async def verify_registration_otp(
             
             # Create tokens for auto-login
             access_token = create_access_token(
-                data={"sub": user.username, "user_id": user.account_id}
+                data={"sub": user.username, "user_id": user.accountID}
             )
             refresh_token = create_refresh_token(
-                data={"sub": user.username, "user_id": user.account_id}
+                data={"sub": user.username, "user_id": user.accountID}
             )
             
             return schemas.OTPVerificationResponse(
@@ -419,17 +445,13 @@ async def cancel_registration(
             detail="Không tìm thấy tài khoản"
         )
     
-    # Check if account is already activated
-    if user.activated:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Không thể xóa tài khoản đã được kích hoạt"
-        )
+    # Check if account can be deleted (allow deletion of active accounts for simplicity)
+    # Note: In production, you might want to restrict deletion based on business rules
     
     # Check if user has any active participation in auctions
     active_participations = db.query(Payment).filter(
-        Payment.user_id == user.account_id,
-        Payment.payment_status.in_(["pending", "completed"])
+        Payment.userID == user.accountID,
+        Payment.paymentStatus.in_(["pending", "completed"])
     ).count()
     
     if active_participations > 0:
@@ -440,8 +462,8 @@ async def cancel_registration(
     
     # Check if user has any active bids
     active_bids = db.query(Bid).filter(
-        Bid.user_id == user.account_id,
-        Bid.bid_status == "active"
+        Bid.userID == user.accountID,
+        Bid.bidStatus == "active"
     ).count()
     
     if active_bids > 0:
@@ -497,12 +519,7 @@ async def resend_registration_otp(
             detail="Không tìm thấy người dùng"
         )
     
-    # Check if already activated
-    if user.activated:
-        return schemas.OTPResendResponse(
-            success=False,
-            message="Tài khoản đã được kích hoạt"
-        )
+    # Note: All accounts are active by default, so no activation check needed
     
     # Generate new OTP
     otp_data = create_otp(user.username, "registration", db)

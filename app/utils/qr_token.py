@@ -71,12 +71,12 @@ def generate_payment_token(
     # Create database record
     db_token = PaymentToken(
         token=jwt_token,
-        payment_id=payment_id,
-        user_id=user_id,
+        paymentID=payment_id,
+        userID=user_id,
         amount=amount,
-        expires_at=expires_at,
-        is_used=False,
-        created_at=datetime.utcnow()
+        expiresAt=expires_at,
+        isUsed=False,
+        createdAt=datetime.utcnow()
     )
     
     db.add(db_token)
@@ -84,7 +84,7 @@ def generate_payment_token(
     db.refresh(db_token)
     
     # Update JWT payload with actual token_id
-    payload["token_id"] = db_token.token_id
+    payload["token_id"] = db_token.tokenID
     jwt_token_updated = jwt.encode(
         payload,
         settings.SECRET_PAYMENT_TOKEN_KEY,
@@ -131,7 +131,7 @@ def verify_payment_token(token: str, db: Session) -> Dict:
         
         # Get token from database
         db_token = db.query(PaymentToken).filter(
-            PaymentToken.token_id == token_id,
+            PaymentToken.tokenID == token_id,
             PaymentToken.token == token
         ).first()
         
@@ -139,14 +139,14 @@ def verify_payment_token(token: str, db: Session) -> Dict:
             raise PaymentTokenError("Token not found")
         
         # Check if token is used
-        if db_token.is_used:
+        if db_token.isUsed:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Token has already been used"
             )
         
         # Check if token is expired
-        if db_token.expires_at < datetime.utcnow():
+        if db_token.expiresAt < datetime.utcnow():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Token has expired"
@@ -154,8 +154,8 @@ def verify_payment_token(token: str, db: Session) -> Dict:
         
         # Verify payment exists and belongs to user
         payment = db.query(Payment).filter(
-            Payment.payment_id == payment_id,
-            Payment.user_id == user_id
+            Payment.paymentID == payment_id,
+            Payment.userID == user_id
         ).first()
         
         if not payment:
@@ -209,15 +209,15 @@ def invalidate_token(token: str, db: Session) -> bool:
         
         # Get and update token
         db_token = db.query(PaymentToken).filter(
-            PaymentToken.token_id == token_id,
+            PaymentToken.tokenID == token_id,
             PaymentToken.token == token
         ).first()
         
         if not db_token:
             return False
         
-        db_token.is_used = True
-        db_token.used_at = datetime.utcnow()
+        db_token.isUsed = True
+        db_token.usedAt = datetime.utcnow()
         db.commit()
         
         return True
@@ -277,7 +277,7 @@ def get_token_status(token: str, db: Session) -> Dict:
         
         # Get token from database
         db_token = db.query(PaymentToken).filter(
-            PaymentToken.token_id == token_id,
+            PaymentToken.tokenID == token_id,
             PaymentToken.token == token
         ).first()
         
@@ -288,24 +288,24 @@ def get_token_status(token: str, db: Session) -> Dict:
             }
         
         # Check status
-        if db_token.is_used:
+        if db_token.isUsed:
             return {
                 "valid": False,
                 "error": "Token already used",
-                "used_at": db_token.used_at.isoformat()
+                "used_at": db_token.usedAt.isoformat()
             }
         
-        if db_token.expires_at < datetime.utcnow():
+        if db_token.expiresAt < datetime.utcnow():
             return {
                 "valid": False,
                 "error": "Token expired",
-                "expired_at": db_token.expires_at.isoformat()
+                "expired_at": db_token.expiresAt.isoformat()
             }
         
         # Calculate remaining time
         now = datetime.utcnow()
-        if db_token.expires_at > now:
-            remaining_seconds = int((db_token.expires_at - now).total_seconds())
+        if db_token.expiresAt > now:
+            remaining_seconds = int((db_token.expiresAt - now).total_seconds())
             remaining_minutes = remaining_seconds // 60
             
             return {
@@ -314,7 +314,7 @@ def get_token_status(token: str, db: Session) -> Dict:
                 "user_id": user_id,
                 "amount": amount,
                 "payment_type": payment_type,
-                "expires_at": db_token.expires_at.isoformat(),
+                "expires_at": db_token.expiresAt.isoformat(),
                 "remaining_minutes": remaining_minutes,
                 "remaining_seconds": remaining_seconds
             }
@@ -322,7 +322,7 @@ def get_token_status(token: str, db: Session) -> Dict:
             return {
                 "valid": False,
                 "error": "Token expired",
-                "expired_at": db_token.expires_at.isoformat()
+                "expired_at": db_token.expiresAt.isoformat()
             }
             
     except JWTError:

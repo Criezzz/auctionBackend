@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, text
 from app.database import SessionLocal, engine, SQLALCHEMY_DATABASE_URL
 from app import models
 from app.auth import get_password_hash
+from app.models import UserRole, AccountStatus
 
 
 def create_database_if_not_exists():
@@ -55,13 +56,13 @@ def seed_database():
             username="admin",
             email="admin@auction.com",
             password=get_password_hash("admin123"),
-            first_name="Admin",
-            last_name="User",
-            phone_num="0123456789",
-            created_at=datetime.utcnow(),
-            activated=True,
-            is_admin=True,
-            is_authenticated=False
+            firstName="Admin",
+            lastName="User",
+            phoneNumber="0123456789",
+            address="Admin Address",
+            role=models.UserRole.ADMIN,
+            status=models.AccountStatus.ACTIVE,
+            isAuthenticated=False
         )
         
         # Create regular user
@@ -69,13 +70,13 @@ def seed_database():
             username="user1",
             email="user1@auction.com",
             password=get_password_hash("user123"),
-            first_name="John",
-            last_name="Doe",
-            phone_num="0987654321",
-            created_at=datetime.utcnow(),
-            activated=True,
-            is_admin=False,
-            is_authenticated=False
+            firstName="John",
+            lastName="Doe",
+            phoneNumber="0987654321",
+            address="User Address",
+            role=models.UserRole.USER,
+            status=models.AccountStatus.ACTIVE,
+            isAuthenticated=False
         )
         
         db.add(admin)

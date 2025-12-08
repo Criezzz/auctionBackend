@@ -52,22 +52,22 @@ async def websocket_notifications(websocket: WebSocket, token: str, db: Session 
     
     # Get user
     user = crud.get_account_by_username(db, username)
-    if not user or not user.activated:
-        await websocket.close(code=4401, reason="User not found or not activated")
+    if not user:
+        await websocket.close(code=4401, reason="User not found")
         return
     
     # Accept connection
     await websocket.accept()
     
     # Add connection to active connections
-    await crud.add_connection(user.account_id, websocket)
+    await crud.add_connection(user.accountID, websocket)
     
     try:
         # Send connection confirmation
         await websocket.send_json({
             "type": "connection_established",
             "data": {
-                "user_id": user.account_id,
+                "user_id": user.accountID,
                 "username": user.username,
                 "message": "Connected to notification service"
             },
@@ -75,7 +75,7 @@ async def websocket_notifications(websocket: WebSocket, token: str, db: Session 
         })
         
         # Send unread notification count
-        unread_count = crud.get_unread_count(db, user.account_id)
+        unread_count = crud.get_unread_count(db, user.accountID)
         await websocket.send_json({
             "type": "unread_count",
             "data": {"count": unread_count},
@@ -135,10 +135,10 @@ async def websocket_notifications(websocket: WebSocket, token: str, db: Session 
                 break
     
     except WebSocketDisconnect:
-        print(f"WebSocket disconnected for user {user.account_id}")
+        print(f"WebSocket disconnected for user {user.accountID}")
     
     except Exception as e:
-        print(f"WebSocket error for user {user.account_id}: {e}")
+        print(f"WebSocket error for user {user.accountID}: {e}")
         try:
             await websocket.close(code=4500, reason="Internal server error")
         except:
@@ -146,7 +146,7 @@ async def websocket_notifications(websocket: WebSocket, token: str, db: Session 
     
     finally:
         # Remove connection from active connections
-        await crud.remove_connection(user.account_id, websocket)
+        await crud.remove_connection(user.accountID, websocket)
 
 
 @router.websocket("/auction/{auction_id}/{token}")
@@ -168,8 +168,8 @@ async def websocket_auction_updates(websocket: WebSocket, auction_id: int, token
     
     # Get user
     user = crud.get_account_by_username(db, username)
-    if not user or not user.activated:
-        await websocket.close(code=4401, reason="User not found or not activated")
+    if not user:
+        await websocket.close(code=4401, reason="User not found")
         return
     
     # Verify auction exists
@@ -182,7 +182,7 @@ async def websocket_auction_updates(websocket: WebSocket, auction_id: int, token
     await websocket.accept()
     
     # Add connection to active connections
-    await crud.add_connection(user.account_id, websocket)
+    await crud.add_connection(user.accountID, websocket)
     
     try:
         # Send initial auction data
@@ -195,12 +195,12 @@ async def websocket_auction_updates(websocket: WebSocket, auction_id: int, token
             "type": "auction_initial_data",
             "data": {
                 "auction_id": auction_id,
-                "auction_name": auction.auction_name,
-                "current_highest_bid": current_highest_bid.bid_price if current_highest_bid else None,
-                "highest_bidder_name": f"{highest_bidder.first_name} {highest_bidder.last_name}".strip() if highest_bidder else None,
+                "auction_name": auction.auctionName,
+                "current_highest_bid": current_highest_bid.bidPrice if current_highest_bid else None,
+                "highest_bidder_name": f"{highest_bidder.firstName} {highest_bidder.lastName}".strip() if highest_bidder else None,
                 "bid_count": len(crud.get_bids_by_auction(db, auction_id)),
-                "auction_status": auction.auction_status,
-                "end_time": auction.end_date.isoformat()
+                "auction_status": auction.auctionStatus,
+                "end_time": auction.endDate.isoformat()
             },
             "timestamp": datetime.utcnow().isoformat()
         })
@@ -225,10 +225,10 @@ async def websocket_auction_updates(websocket: WebSocket, auction_id: int, token
                 break
     
     except WebSocketDisconnect:
-        print(f"Auction WebSocket disconnected for user {user.account_id}, auction {auction_id}")
+        print(f"Auction WebSocket disconnected for user {user.accountID}, auction {auction_id}")
     
     except Exception as e:
-        print(f"Auction WebSocket error for user {user.account_id}: {e}")
+        print(f"Auction WebSocket error for user {user.accountID}: {e}")
         try:
             await websocket.close(code=4500, reason="Internal server error")
         except:
@@ -236,4 +236,4 @@ async def websocket_auction_updates(websocket: WebSocket, auction_id: int, token
     
     finally:
         # Remove connection
-        await crud.remove_connection(user.account_id, websocket)
+        await crud.remove_connection(user.accountID, websocket)
